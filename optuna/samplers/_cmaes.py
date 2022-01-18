@@ -18,11 +18,11 @@ import numpy as np
 
 import optuna
 from optuna import logging
-from optuna._study_direction import StudyDirection
 from optuna._transform import _SearchSpaceTransform
 from optuna.distributions import BaseDistribution
 from optuna.exceptions import ExperimentalWarning
 from optuna.samplers import BaseSampler
+from optuna.study._study_direction import StudyDirection
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 
@@ -38,7 +38,7 @@ CmaClass = Union[CMA, SepCMA]
 
 
 class CmaEsSampler(BaseSampler):
-    """A sampler using `cmaes <https://github.com/CyberAgent/cmaes>`_ as the backend.
+    """A sampler using `cmaes <https://github.com/CyberAgentAILab/cmaes>`_ as the backend.
 
     Example:
 
@@ -61,7 +61,7 @@ class CmaEsSampler(BaseSampler):
 
     Please note that this sampler does not support CategoricalDistribution.
     However, :class:`~optuna.distributions.DiscreteUniformDistribution`
-    (:func:`~optuna.trial.Trial.suggest_discrete_uniform`) and
+    (:func:`~optuna.trial.Trial.suggest_float`) and
     Int(Log)Distribution (:func:`~optuna.trial.Trial.suggest_int`) are supported.
 
     If your search space contains categorical parameters, I recommend you
@@ -291,6 +291,8 @@ class CmaEsSampler(BaseSampler):
                     optuna.distributions.DiscreteUniformDistribution,
                     optuna.distributions.IntUniformDistribution,
                     optuna.distributions.IntLogUniformDistribution,
+                    optuna.distributions.FloatDistribution,
+                    optuna.distributions.IntDistribution,
                 ),
             ):
                 # Categorical distribution is unsupported.

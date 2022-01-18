@@ -19,35 +19,36 @@ def test_plot_param_importances() -> None:
     # Test with no trial.
     study = create_study()
     figure = plot_param_importances(study)
-    assert not figure.has_data()
+    assert len(figure.get_lines()) == 0
 
     study = prepare_study_with_trials(with_c_d=True)
 
     # Test with a trial.
-    # TODO(ytknzw): Add more specific assertion with the test case.
     figure = plot_param_importances(study)
-    assert figure.has_data()
+    assert len(figure.get_lines()) == 0
+    assert figure.xaxis.label.get_text() == "Importance for Objective Value"
 
     # Test with an evaluator.
-    # TODO(ytknzw): Add more specific assertion with the test case.
     plot_param_importances(study, evaluator=MeanDecreaseImpurityImportanceEvaluator())
-    assert figure.has_data()
+    assert len(figure.get_lines()) == 0
+    assert figure.xaxis.label.get_text() == "Importance for Objective Value"
 
     # Test with a trial to select parameter.
-    # TODO(ytknzw): Add more specific assertion with the test case.
     figure = plot_param_importances(study, params=["param_b"])
-    assert figure.has_data()
+    assert len(figure.get_lines()) == 0
+    assert figure.xaxis.label.get_text() == "Importance for Objective Value"
 
     # Test with a customized target value.
     with pytest.warns(UserWarning):
         figure = plot_param_importances(
             study, target=lambda t: t.params["param_b"] + t.params["param_d"]
         )
-    assert figure.has_data()
+    assert len(figure.get_lines()) == 0
 
     # Test with a customized target name.
     figure = plot_param_importances(study, target_name="Target Name")
-    assert figure.has_data()
+    assert len(figure.get_lines()) == 0
+    assert figure.xaxis.label.get_text() == "Importance for Target Name"
 
     # Test with wrong parameters.
     with pytest.raises(ValueError):
@@ -61,4 +62,34 @@ def test_plot_param_importances() -> None:
     study = create_study()
     study.optimize(fail_objective, n_trials=1, catch=(ValueError,))
     figure = plot_param_importances(study)
-    assert not figure.has_data()
+    assert len(figure.get_lines()) == 0
+
+
+def test_importance_scores_rendering() -> None:
+
+    study = prepare_study_with_trials()
+    ax = plot_param_importances(study)
+
+    # Test if importance scores are rendered.
+    text_objects = ax.figure.findobj(lambda obj: "Text" in str(obj))
+    importances = [patch.get_width() for patch in ax.patches]
+    labels = [obj for obj in text_objects if obj.get_position()[0] in importances]
+    assert len(labels) == 2
+
+
+def test_switch_label_when_param_insignificant() -> None:
+    def _objective(trial: Trial) -> int:
+        x = trial.suggest_int("x", 0, 2)
+        _ = trial.suggest_int("y", -1, 1)
+        return x ** 2
+
+    study = create_study()
+    for x in range(1, 3):
+        study.enqueue_trial({"x": x, "y": 0})
+
+    study.optimize(_objective, n_trials=2)
+    ax = plot_param_importances(study)
+
+    # Test if label for `y` param has been switched to `<0.01`.
+    labels = ax.figure.findobj(lambda obj: "<0.01" in str(obj))
+    assert len(labels) == 1

@@ -14,6 +14,10 @@ on:
       - setup.py
       - .github/workflows/dockerimage.yml
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/master' && github.run_number || github.ref }}
+  cancel-in-progress: true
+
 env:
   DOCKER_HUB_BASE_NAME: optuna/optuna
 
@@ -62,7 +66,7 @@ jobs:
 
     - name: Verify the built image
       run: |
-        docker run "${HUB_TAG}" python examples/quadratic_simple.py
+        docker run "${HUB_TAG}" optuna --version
 
     - name: Login & Push to Docker Hub
       if: ${{ github.event_name != 'pull_request' }}

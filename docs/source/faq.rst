@@ -93,7 +93,7 @@ Please see :ref:`rdb` for more details.
 How can I save and resume studies?
 ----------------------------------------------------
 
-There are two ways of persisting studies, which depends if you are using
+There are two ways of persisting studies, which depend if you are using
 in-memory storage (default) or remote databases (RDB). In-memory studies can be
 saved and loaded like usual Python objects using ``pickle`` or ``joblib``. For
 example, using ``joblib``:
@@ -114,7 +114,10 @@ And to resume the study:
     for key, value in study.best_trial.params.items():
         print(f"    {key}: {value}")
 
-If you are using RDBs, see :ref:`rdb` for more details.
+Note that Optuna does not support saving/reloading across different Optuna
+versions with ``pickle``. To save/reload a study across different Optuna versions,
+please use RDBs and `upgrade storage schema <reference/cli.html#storage-upgrade>`_
+if necessary. If you are using RDBs, see :ref:`rdb` for more details.
 
 How to suppress log messages of Optuna?
 ---------------------------------------
@@ -332,3 +335,162 @@ Note that the above examples are similar to running the garbage collector inside
 
     :class:`~optuna.integration.ChainerMNStudy` does currently not provide ``gc_after_trial`` nor callbacks for :func:`~optuna.integration.ChainerMNStudy.optimize`.
     When using this class, you will have to call the garbage collector inside the objective function.
+
+How can I output a log only when the best value is updated?
+-----------------------------------------------------------
+
+Here's how to replace the logging feature of optuna with your own logging callback function.
+The implemented callback can be passed to :func:`~optuna.study.Study.optimize`.
+Here's an example:
+
+.. code-block:: python
+
+    import optuna
+
+
+    # Turn off optuna log notes.
+    optuna.logging.set_verbosity(optuna.logging.WARN)
+
+
+    def objective(trial):
+        x = trial.suggest_float("x", 0, 1)
+        return x ** 2
+
+
+    def logging_callback(study, frozen_trial):
+        previous_best_value = study.user_attrs.get("previous_best_value", None)
+        if previous_best_value != study.best_value:
+            study.set_user_attr("previous_best_value", study.best_value)
+            print(
+                "Trial {} finished with best value: {} and parameters: {}. ".format(
+                frozen_trial.number,
+                frozen_trial.value,
+                frozen_trial.params,
+                )
+            )
+
+
+    study = optuna.create_study()
+    study.optimize(objective, n_trials=100, callbacks=[logging_callback])
+
+Note that this callback may show incorrect values when you try to optimize an objective function with ``n_jobs!=1``
+(or other forms of distributed optimization) due to its reads and writes to storage that are prone to race conditions.
+
+How do I suggest variables which represent the proportion, that is, are in accordance with Dirichlet distribution?
+------------------------------------------------------------------------------------------------------------------
+
+When you want to suggest :math:`n` variables which represent the proportion, that is, :math:`p[0], p[1], ..., p[n-1]` which satisfy :math:`0 \le p[k] \le 1` for any :math:`k` and :math:`p[0] + p[1] + ... + p[n-1] = 1`, try the below.
+For example, these variables can be used as weights when interpolating the loss functions.
+These variables are in accordance with the flat `Dirichlet distribution <https://en.wikipedia.org/wiki/Dirichlet_distribution>`_.
+
+.. code-block:: python
+
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import optuna
+
+
+    def objective(trial):
+        n = 5
+        x = []
+        for i in range(n):
+            x.append(- np.log(trial.suggest_float(f"x_{i}", 0, 1)))
+
+        p = []
+        for i in range(n):
+            p.append(x[i] / sum(x))
+
+        for i in range(n):
+            trial.set_user_attr(f"p_{i}", p[i])
+
+        return 0
+
+    study = optuna.create_study(sampler=optuna.samplers.RandomSampler())
+    study.optimize(objective, n_trials=1000)
+
+    n = 5
+    p = []
+    for i in range(n):
+        p.append([trial.user_attrs[f"p_{i}"] for trial in study.trials])
+    axes = plt.subplots(n, n, figsize=(20, 20))[1]
+
+    for i in range(n):
+        for j in range(n):
+            axes[j][i].scatter(p[i], p[j], marker=".")
+            axes[j][i].set_xlim(0, 1)
+            axes[j][i].set_ylim(0, 1)
+            axes[j][i].set_xlabel(f"p_{i}")
+            axes[j][i].set_ylabel(f"p_{j}")
+
+    plt.savefig("sampled_ps.png")
+
+This method is justified in the following way:
+First, if we apply the transformation :math:`x = - \log (u)` to the variable :math:`u` sampled from the uniform distribution :math:`Uni(0, 1)` in the interval :math:`[0, 1]`, the variable :math:`x` will follow the exponential distribution :math:`Exp(1)` with scale parameter :math:`1`.
+Furthermore, for :math:`n` variables :math:`x[0], ..., x[n-1]` that follow the exponential distribution of scale parameter :math:`1` independently, normalizing them with :math:`p[i] = x[i] / \sum_i x[i]`, the vector :math:`p` follows the Dirichlet distribution :math:`Dir(\alpha)` of scale parameter :math:`\alpha = (1, ..., 1)`.
+You can verify the transformation by calculating the elements of the Jacobian.
+
+How can I optimize a model with some constraints?
+-------------------------------------------------
+
+When you want to optimize a model with constraints, you can use the following classes, :class:`~optuna.samplers.NSGAIISampler` or :class:`~optuna.integration.BoTorchSampler`.
+The following example is a benchmark of Binh and Korn function, a multi-objective optimization, with constraints using :class:`~optuna.samplers.NSGAIISampler`. This one has two constraints :math:`c_0 = (x-5)^2 + y^2 - 25 \le 0` and :math:`c_1 = -(x - 8)^2 - (y + 3)^2 + 7.7 \le 0` and finds the optimal solution satisfying these constraints.
+
+
+.. code-block:: python
+
+    import optuna
+
+
+    def objective(trial):
+        # Binh and Korn function with constraints.
+        x = trial.suggest_float("x", -15, 30)
+        y = trial.suggest_float("y", -15, 30)
+
+        # Constraints which are considered feasible if less than or equal to zero.
+        # The feasible region is basically the intersection of a circle centered at (x=5, y=0)
+        # and the complement to a circle centered at (x=8, y=-3).
+        c0 = (x - 5) ** 2 + y ** 2 - 25
+        c1 = -((x - 8) ** 2) - (y + 3) ** 2 + 7.7
+
+        # Store the constraints as user attributes so that they can be restored after optimization.
+        trial.set_user_attr("constraint", (c0, c1))
+
+        v0 = 4 * x ** 2 + 4 * y ** 2
+        v1 = (x - 5) ** 2 + (y - 5) ** 2
+
+        return v0, v1
+
+
+    def constraints(trial):
+        return trial.user_attrs["constraint"]
+
+
+    sampler = optuna.samplers.NSGAIISampler(constraints_func=constraints)
+    study = optuna.create_study(
+        directions=["minimize", "minimize"],
+        sampler=sampler,
+    )
+    study.optimize(objective, n_trials=32, timeout=600)
+
+    print("Number of finished trials: ", len(study.trials))
+
+    print("Pareto front:")
+
+    trials = sorted(study.best_trials, key=lambda t: t.values)
+
+    for trial in trials:
+        print("  Trial#{}".format(trial.number))
+        print(
+            "    Values: Values={}, Constraint={}".format(
+                trial.values, trial.user_attrs["constraint"][0]
+            )
+        )
+        print("    Params: {}".format(trial.params))
+
+If you are interested in the exmaple for :class:`~optuna.integration.BoTorchSampler`, please refer to `this sample code <https://github.com/optuna/optuna-examples/blob/main/multi_objective/botorch_simple.py>`_.
+
+
+There are two kinds of constrained optimizations, one with soft constraints and the other with hard constraints.
+Soft constraints do not have to be satisfied, but an objective function is penalized if they are unsatisfied. On the other hand, hard constraints must be satisfied.
+
+Optuna is adopting the soft one and **DOES NOT** support the hard one. In other words, Optuna **DOES NOT** have built-in samplers for the hard constraints.

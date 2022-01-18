@@ -19,7 +19,7 @@ exclude = '''
 
 [tool.isort]
 profile = 'black'
-src_paths = ['optuna', 'tests', 'docs']
+src_paths = ['optuna', 'tests', 'docs', 'benchmarks']
 skip_glob = ['docs/source/conf.py', '**/alembic/versions/*.py', 'tutorial/**/*.py']
 line_length = 99
 lines_after_imports = 2
@@ -29,3 +29,4 @@ order_by_type = 'False'
 
 [tool.pytest.ini_options]
 addopts = "--color=yes"
+markers = ["skip_coverage: marks tests are skipped when calculating the coverage"]

@@ -5,10 +5,11 @@ from typing import List
 from typing import Optional
 from typing import Sequence
 from typing import Union
+import warnings
 
 from optuna import distributions
 from optuna import logging
-from optuna._experimental import experimental
+from optuna._deprecated import deprecated
 from optuna.distributions import BaseDistribution
 from optuna.distributions import CategoricalDistribution
 from optuna.distributions import DiscreteUniformDistribution
@@ -21,6 +22,7 @@ from optuna.trial._state import TrialState
 
 
 _logger = logging.get_logger(__name__)
+_suggest_deprecated_msg = "Use :func:`~optuna.trial.FrozenTrial.suggest_float` instead."
 
 CategoricalChoiceType = Union[None, bool, int, float, str]
 
@@ -43,7 +45,7 @@ class FrozenTrial(BaseTrial):
 
 
             def objective(trial):
-                x = trial.suggest_uniform("x", -1, 1)
+                x = trial.suggest_float("x", -1, 1)
                 return x ** 2
 
 
@@ -53,10 +55,9 @@ class FrozenTrial(BaseTrial):
             assert objective(study.best_trial) == study.best_value
 
     .. note::
-        Attributes are set in :func:`optuna.Study.optimize`,
-        but several attributes can be updated after the optimization.
-        That means such attributes are overwritten by the re-evaluation
-        if your objective updates attributes of :class:`~optuna.trial.Trial`.
+        Instances are mutable, despite the name.
+        For instance, :func:`~optuna.trial.FrozenTrial.set_user_attr` will update user attributes
+        of objects in-place.
 
 
         Example:
@@ -72,7 +73,7 @@ class FrozenTrial(BaseTrial):
 
 
                 def objective(trial):
-                    x = trial.suggest_uniform("x", -1, 1)
+                    x = trial.suggest_float("x", -1, 1)
 
                     # this user attribute always differs
                     trial.set_user_attr("evaluation time", datetime.datetime.now())
@@ -234,18 +235,20 @@ class FrozenTrial(BaseTrial):
             else:
                 return self._suggest(name, UniformDistribution(low=low, high=high))
 
+    @deprecated("3.0.0", "6.0.0", text=_suggest_deprecated_msg)
     def suggest_uniform(self, name: str, low: float, high: float) -> float:
 
-        return self._suggest(name, UniformDistribution(low=low, high=high))
+        return self.suggest_float(name, low, high)
 
+    @deprecated("3.0.0", "6.0.0", text=_suggest_deprecated_msg)
     def suggest_loguniform(self, name: str, low: float, high: float) -> float:
 
-        return self._suggest(name, LogUniformDistribution(low=low, high=high))
+        return self.suggest_float(name, low, high, log=True)
 
+    @deprecated("3.0.0", "6.0.0", text=_suggest_deprecated_msg)
     def suggest_discrete_uniform(self, name: str, low: float, high: float, q: float) -> float:
 
-        discrete = DiscreteUniformDistribution(low=low, high=high, q=q)
-        return self._suggest(name, discrete)
+        return self.suggest_float(name, low, high, step=q)
 
     def suggest_int(self, name: str, low: int, high: int, step: int = 1, log: bool = False) -> int:
 
@@ -362,7 +365,7 @@ class FrozenTrial(BaseTrial):
         value = self._params[name]
         param_value_in_internal_repr = distribution.to_internal_repr(value)
         if not distribution._contains(param_value_in_internal_repr):
-            raise ValueError(
+            warnings.warn(
                 "The value {} of the parameter '{}' is out of "
                 "the range of the distribution {}.".format(value, name, distribution)
             )
@@ -503,7 +506,6 @@ class FrozenTrial(BaseTrial):
             return None
 
 
-@experimental("2.0.0")
 def create_trial(
     *,
     state: TrialState = TrialState.COMPLETE,
@@ -549,8 +551,9 @@ def create_trial(
         functions are created inside :func:`~optuna.study.Study.optimize`.
 
     .. note::
-        When ``state`` is ``TrialState.COMPLETE``, the following parameters are
+        When ``state`` is :class:`TrialState.COMPLETE`, the following parameters are
         required:
+
         * ``params``
         * ``distributions``
         * ``value`` or ``values``
@@ -559,12 +562,11 @@ def create_trial(
         state:
             Trial state.
         value:
-            Trial objective value. Must be specified if ``state`` is ``None``
-            or :class:`TrialState.COMPLETE`.
+            Trial objective value. Must be specified if ``state`` is :class:`TrialState.COMPLETE`.
         values:
             Sequence of the trial objective values. The length is greater than 1 if the problem is
             multi-objective optimization.
-            Must be specified if ``state`` is ``None`` or :class:`TrialState.COMPLETE`.
+            Must be specified if ``state`` is :class:`TrialState.COMPLETE`.
         params:
             Dictionary with suggested parameters of the trial.
         distributions:

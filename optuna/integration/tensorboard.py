@@ -17,8 +17,8 @@ class TensorBoardCallback(object):
 
     This callback adds relevant information that is tracked by Optuna to TensorBoard.
 
-    See `the example <https://github.com/optuna/optuna/blob/master/
-    examples/tensorboard_simple.py>`_.
+    See `the example <https://github.com/optuna/optuna-examples/blob/main/
+    tensorboard/tensorboard_simple.py>`_.
 
     Args:
         dirname:
@@ -60,10 +60,12 @@ class TensorBoardCallback(object):
             optuna.distributions.UniformDistribution,
             optuna.distributions.LogUniformDistribution,
             optuna.distributions.DiscreteUniformDistribution,
+            optuna.distributions.FloatDistribution,
         )
         int_distributions = (
             optuna.distributions.IntUniformDistribution,
             optuna.distributions.IntLogUniformDistribution,
+            optuna.distributions.IntDistribution,
         )
         categorical_distributions = (optuna.distributions.CategoricalDistribution,)
         supported_distributions = (

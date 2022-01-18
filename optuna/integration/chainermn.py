@@ -9,6 +9,7 @@ from typing import Type
 import warnings
 
 from optuna import TrialPruned
+from optuna._deprecated import deprecated
 from optuna._imports import try_import
 from optuna.distributions import BaseDistribution
 from optuna.distributions import CategoricalChoiceType
@@ -21,6 +22,9 @@ from optuna.trial import Trial
 
 with try_import() as _imports:
     from chainermn.communicators.communicator_base import CommunicatorBase  # NOQA
+
+
+_suggest_deprecated_msg = "Use :func:`~optuna.integration.ChainerMNTrial.suggest_float` instead."
 
 
 class _ChainerMNObjectiveFunc(object):
@@ -59,8 +63,8 @@ class ChainerMNStudy(object):
         :class:`~optuna.study.Study`. Please refer to :class:`optuna.study.Study` for further
         details.
 
-    See `the example <https://github.com/optuna/optuna/blob/master/
-    examples/chainer/chainermn_integration.py>`__
+    See `the example <https://github.com/optuna/optuna-examples/blob/main/
+    chainer/chainermn_integration.py>`__
     if you want to optimize an objective function that trains neural network
     written with ChainerMN.
 
@@ -178,29 +182,20 @@ class ChainerMNTrial(BaseTrial):
 
         return self._call_with_mpi(func)
 
+    @deprecated("3.0.0", "6.0.0", text=_suggest_deprecated_msg)
     def suggest_uniform(self, name: str, low: float, high: float) -> float:
-        def func() -> float:
 
-            assert self.delegate is not None
-            return self.delegate.suggest_uniform(name, low, high)
+        return self.suggest_float(name, low, high)
 
-        return self._call_with_mpi(func)
-
+    @deprecated("3.0.0", "6.0.0", text=_suggest_deprecated_msg)
     def suggest_loguniform(self, name: str, low: float, high: float) -> float:
-        def func() -> float:
 
-            assert self.delegate is not None
-            return self.delegate.suggest_loguniform(name, low, high)
+        return self.suggest_float(name, low, high, log=True)
 
-        return self._call_with_mpi(func)
-
+    @deprecated("3.0.0", "6.0.0", text=_suggest_deprecated_msg)
     def suggest_discrete_uniform(self, name: str, low: float, high: float, q: float) -> float:
-        def func() -> float:
 
-            assert self.delegate is not None
-            return self.delegate.suggest_discrete_uniform(name, low, high, q)
-
-        return self._call_with_mpi(func)
+        return self.suggest_float(name, low, high, step=q)
 
     def suggest_int(self, name: str, low: int, high: int, step: int = 1, log: bool = False) -> int:
         def func() -> int:

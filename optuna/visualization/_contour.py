@@ -1,5 +1,4 @@
 import math
-from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import List
@@ -8,13 +7,14 @@ from typing import Tuple
 
 from packaging import version
 
-from optuna._study_direction import StudyDirection
 from optuna.logging import get_logger
 from optuna.study import Study
+from optuna.study._study_direction import StudyDirection
 from optuna.trial import FrozenTrial
 from optuna.trial import TrialState
 from optuna.visualization._plotly_imports import _imports
 from optuna.visualization._utils import _check_plot_args
+from optuna.visualization._utils import _get_param_values
 from optuna.visualization._utils import _is_log_scale
 from optuna.visualization._utils import _is_numerical
 
@@ -88,13 +88,6 @@ def plot_contour(
     _imports.check()
     _check_plot_args(study, target, target_name)
     return _get_contour_plot(study, params, target, target_name)
-
-
-def _get_param_values(trials: List[FrozenTrial], p_name: str) -> List[Any]:
-    values = [t.params[p_name] for t in trials if p_name in t.params]
-    if _is_numerical(trials, p_name):
-        return values
-    return list(map(str, values))
 
 
 def _get_contour_plot(
@@ -298,13 +291,13 @@ def _generate_contour_subplot(
         contours_coloring="heatmap",
         hoverinfo="none",
         line_smoothing=1.3,
-        reversescale=target is None and direction == StudyDirection.MINIMIZE,
+        reversescale=target is None and direction == StudyDirection.MAXIMIZE,
     )
 
     scatter = go.Scatter(
         x=x_values,
         y=y_values,
-        marker={"line": {"width": 0.5, "color": "Grey"}, "color": "black"},
+        marker={"line": {"width": 2.0, "color": "Grey"}, "color": "black"},
         mode="markers",
         showlegend=False,
     )

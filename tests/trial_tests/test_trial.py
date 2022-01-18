@@ -18,6 +18,7 @@ from optuna import distributions
 from optuna import load_study
 from optuna import samplers
 from optuna import storages
+from optuna.distributions import BaseDistribution
 from optuna.distributions import CategoricalDistribution
 from optuna.distributions import DiscreteUniformDistribution
 from optuna.distributions import IntLogUniformDistribution
@@ -80,8 +81,8 @@ def test_check_distribution_suggest_uniform(storage_mode: str) -> None:
             trial.suggest_uniform("x", 10, 20)
             trial.suggest_uniform("x", 10, 30)
 
-        # we expect exactly one warning
-        assert len(record) == 1
+        # we expect exactly one warning (not counting ones caused by deprecation)
+        assert len([r for r in record if r.category != FutureWarning]) == 1
 
         with pytest.raises(ValueError):
             trial.suggest_int("x", 10, 20)
@@ -104,8 +105,8 @@ def test_check_distribution_suggest_loguniform(storage_mode: str) -> None:
             trial.suggest_loguniform("x", 10, 20)
             trial.suggest_loguniform("x", 10, 30)
 
-        # we expect exactly one warning
-        assert len(record) == 1
+        # we expect exactly one warning (not counting ones caused by deprecation)
+        assert len([r for r in record if r.category != FutureWarning]) == 1
 
         with pytest.raises(ValueError):
             trial.suggest_int("x", 10, 20)
@@ -128,8 +129,8 @@ def test_check_distribution_suggest_discrete_uniform(storage_mode: str) -> None:
             trial.suggest_discrete_uniform("x", 10, 20, 2)
             trial.suggest_discrete_uniform("x", 10, 22, 2)
 
-        # we expect exactly one warning
-        assert len(record) == 1
+        # we expect exactly one warning (not counting ones caused by deprecation)
+        assert len([r for r in record if r.category != FutureWarning]) == 1
 
         with pytest.raises(ValueError):
             trial.suggest_int("x", 10, 20, 2)
@@ -361,6 +362,18 @@ def test_suggest_discrete_uniform_range(storage_mode: str, range_config: Dict[st
         assert mock_object.call_count == 1
 
 
+def test_suggest_float_invalid_step() -> None:
+
+    study = create_study()
+    trial = study.ask()
+
+    with pytest.raises(ValueError):
+        trial.suggest_float("x1", 10, 20, step=0)
+
+    with pytest.raises(ValueError):
+        trial.suggest_float("x2", 10, 20, step=-1)
+
+
 @pytest.mark.parametrize("storage_mode", STORAGE_MODES)
 def test_suggest_int(storage_mode: str) -> None:
 
@@ -427,6 +440,18 @@ def test_suggest_int_range(storage_mode: str, range_config: Dict[str, int]) -> N
             )
         assert x == range_config["low"]
         assert mock_object.call_count == 1
+
+
+def test_suggest_int_invalid_step() -> None:
+
+    study = create_study()
+    trial = study.ask()
+
+    with pytest.raises(ValueError):
+        trial.suggest_int("x1", 10, 20, step=0)
+
+    with pytest.raises(ValueError):
+        trial.suggest_int("x2", 10, 20, step=-1)
 
 
 @pytest.mark.parametrize("storage_mode", STORAGE_MODES)
@@ -600,6 +625,18 @@ def test_report() -> None:
         trial.report(1.23, -1)
 
 
+def test_report_warning() -> None:
+
+    study = create_study()
+    trial = study.ask()
+
+    trial.report(1.23, 1)
+
+    # Warn if multiple times call report method at the same step
+    with pytest.warns(UserWarning):
+        trial.report(1, 1)
+
+
 def test_study_id() -> None:
 
     study = create_study()
@@ -614,7 +651,7 @@ def test_study_id() -> None:
 def test_create_trial(state: TrialState) -> None:
     value = 0.2
     params = {"x": 10}
-    distributions = {"x": UniformDistribution(5, 12)}
+    distributions: Dict[str, BaseDistribution] = {"x": UniformDistribution(5, 12)}
     user_attrs = {"foo": "bar"}
     system_attrs = {"baz": "qux"}
     intermediate_values = {0: 0.0, 1: 0.1, 2: 0.1}

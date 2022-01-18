@@ -21,6 +21,16 @@ for machine learning. It features an imperative, *define-by-run* style user API.
 *define-by-run* API, the code written with Optuna enjoys high modularity, and the user of
 Optuna can dynamically construct the search spaces for the hyperparameters.
 
+## News
+
+- **2021-12-06** First alpha version of Optuna 3.0 is released! Early adopters may want to upgrade and provide feedback for a smoother transition to the coming major release. Try `pip install optuna==3.0.0a0`.
+
+- **2021-10-11**  Optuna 3.0 Roadmap published for review. Please take a look at the [planned improvements to Optuna](https://github.com/optuna/optuna/wiki/Optuna-V3-Roadmap), and share your feedback in the github issues. PR contributions also welcome!
+
+- **2021-07-14** Please take a few minutes to fill in this survey, and let us know how you use Optuna now and what improvements you'd like.🤔
+All questions optional. 🙇‍♂️
+https://forms.gle/mCAttqxVg5oUifKV8
+
 ## Key Features
 
 Optuna has modern functionalities as follows:
@@ -49,7 +59,7 @@ hyperparameter values (e.g., `classifier` and `svm_c`) through multiple *trials*
 `n_trials=100`). Optuna is a framework designed for the automation and the acceleration of the
 optimization *studies*.
 
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](http://colab.research.google.com/github/optuna/optuna/blob/master/examples/quickstart.ipynb)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](http://colab.research.google.com/github/optuna/optuna-examples/blob/main/quickstart.ipynb)
 
 ```python
 import ...
@@ -66,7 +76,7 @@ def objective(trial):
         rf_max_depth = trial.suggest_int('rf_max_depth', 2, 32)
         regressor_obj = sklearn.ensemble.RandomForestRegressor(max_depth=rf_max_depth)
 
-    X, y = sklearn.datasets.load_boston(return_X_y=True)
+    X, y = sklearn.datasets.fetch_california_housing(return_X_y=True)
     X_train, X_val, y_train, y_val = sklearn.model_selection.train_test_split(X, y, random_state=0)
 
     regressor_obj.fit(X_train, y_train)
@@ -80,6 +90,9 @@ study = optuna.create_study()  # Create a new study.
 study.optimize(objective, n_trials=100)  # Invoke optimization of the objective function.
 ```
 
+## Examples
+
+Examples can be found in [optuna/optuna-examples](https://github.com/optuna/optuna-examples).
 
 ## Integrations
 

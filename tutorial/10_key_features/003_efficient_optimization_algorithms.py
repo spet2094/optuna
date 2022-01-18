@@ -1,8 +1,8 @@
 """
 .. _pruning:
 
-Efficient Optimization Algorithms
-=================================
+3. Efficient Optimization Algorithms
+====================================
 
 Optuna enables efficient hyperparameter optimization by
 adopting state-of-the-art algorithms for sampling hyperparameters and
@@ -17,13 +17,17 @@ More detailed explanation of how samplers suggest parameters is in :class:`optun
 
 Optuna provides the following sampling algorithms:
 
+- Grid Search implemented in :class:`optuna.samplers.GridSampler`
+
+- Random Search implemented in :class:`optuna.samplers.RandomSampler`
+
 - Tree-structured Parzen Estimator algorithm implemented in :class:`optuna.samplers.TPESampler`
 
 - CMA-ES based algorithm implemented in :class:`optuna.samplers.CmaEsSampler`
 
-- Grid Search implemented in :class:`optuna.samplers.GridSampler`
+- Algorithm to enable partial fixed parameters implemented in :class:`optuna.samplers.PartialFixedSampler`
 
-- Random Search implemented in :class:`optuna.samplers.RandomSampler`
+- Nondominated Sorting Genetic Algorithm II implemented in :class:`optuna.samplers.NSGAIISampler`
 
 The default sampler is :class:`optuna.samplers.TPESampler`.
 
@@ -60,17 +64,23 @@ print(f"Sampler is {study.sampler.__class__.__name__}")
 #
 # Optuna provides the following pruning algorithms:
 #
-# - Asynchronous Successive Halving algorithm implemted in :class:`optuna.pruners.SuccessiveHalvingPruner`
+# - Median pruning algorithm implemented in :class:`optuna.pruners.MedianPruner`
+#
+# - Non-pruning algorithm implementd in :class:`optuna.pruners.NopPruner`
+#
+# - Algorithm to operate pruner with tolerance implemented in :class:`optuna.pruners.PatientPruner`
+#
+# - Algorithm to prune specified percentile of trials implemented in :class:`optuna.pruners.PercentilePruner`
+#
+# - Asynchronous Successive Halving algorithm implemented in :class:`optuna.pruners.SuccessiveHalvingPruner`
 #
 # - Hyperband algorithm implemented in :class:`optuna.pruners.HyperbandPruner`
-#
-# - Median pruning algorithm implemented in :class:`optuna.pruners.MedianPruner`
 #
 # - Threshold pruning algorithm implemented in :class:`optuna.pruners.ThresholdPruner`
 #
 # We use :class:`optuna.pruners.MedianPruner` in most examples,
 # though basically it is outperformed by :class:`optuna.pruners.SuccessiveHalvingPruner` and
-# :class:`optuna.pruners.HyperbandPruner` as in `this benchmark result <https://github.com/optuna/optuna/wiki/%5BUnder-Construction%5D-Benchmarks-with-Kurobako>`_.
+# :class:`optuna.pruners.HyperbandPruner` as in `this benchmark result <https://github.com/optuna/optuna/wiki/Benchmarks-with-Kurobako>`_.
 #
 #
 # Activating Pruners
@@ -131,7 +141,7 @@ study.optimize(objective, n_trials=20)
 # Which Sampler and Pruner Should be Used?
 # ----------------------------------------
 #
-# From the benchmark results which are available at `optuna/optuna - wiki "Benchmarks with Kurobako" <https://github.com/optuna/optuna/wiki/%5BUnder-Construction%5D-Benchmarks>`_, at least for not deep learning tasks, we would say that
+# From the benchmark results which are available at `optuna/optuna - wiki "Benchmarks with Kurobako" <https://github.com/optuna/optuna/wiki/Benchmarks-with-Kurobako>`_, at least for not deep learning tasks, we would say that
 #
 # * For :class:`optuna.samplers.RandomSampler`, :class:`optuna.pruners.MedianPruner` is the best.
 # * For :class:`optuna.samplers.TPESampler`, :class:`optuna.pruners.Hyperband` is the best.

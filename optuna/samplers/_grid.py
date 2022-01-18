@@ -89,6 +89,10 @@ class GridSampler(BaseSampler):
         suggested may vary. This is to reduce duplicate suggestions during distributed
         optimization.
 
+    Note:
+        All parameters must be specified when using :class:`~optuna.samplers.GridSampler` with
+        :meth:`~optuna.study.Study.enqueue_trial`.
+
     Args:
         search_space:
             A dictionary whose key and value are a parameter name and the corresponding candidates
@@ -125,6 +129,11 @@ class GridSampler(BaseSampler):
         # object is hard to get at the beginning of trial, while we need the access to the object
         # to validate the sampled value.
 
+        # When the trial is created by RetryFailedTrialCallback or enqueue_trial, we should not
+        # assign a new grid_id.
+        if "grid_id" in trial.system_attrs or "fixed_params" in trial.system_attrs:
+            return {}
+
         target_grids = self._get_unvisited_grid_ids(study)
 
         if len(target_grids) == 0:
@@ -157,6 +166,10 @@ class GridSampler(BaseSampler):
         param_name: str,
         param_distribution: BaseDistribution,
     ) -> Any:
+
+        if "grid_id" not in trial.system_attrs:
+            message = "All parameters must be specified when using GridSampler with enqueue_trial."
+            raise ValueError(message)
 
         if param_name not in self._search_space:
             message = "The parameter name, {}, is not found in the given grid.".format(param_name)
@@ -208,6 +221,7 @@ class GridSampler(BaseSampler):
 
         # List up unvisited grids based on already finished ones.
         visited_grids = []
+        running_grids = []
 
         # We directly query the storage to get trials here instead of `study.get_trials`,
         # since some pruners such as `HyperbandPruner` use the study transformed
@@ -215,14 +229,20 @@ class GridSampler(BaseSampler):
         trials = study._storage.get_all_trials(study._study_id, deepcopy=False)
 
         for t in trials:
-            if (
-                t.state.is_finished()
-                and "grid_id" in t.system_attrs
-                and self._same_search_space(t.system_attrs["search_space"])
+            if "grid_id" in t.system_attrs and self._same_search_space(
+                t.system_attrs["search_space"]
             ):
-                visited_grids.append(t.system_attrs["grid_id"])
+                if t.state.is_finished():
+                    visited_grids.append(t.system_attrs["grid_id"])
+                elif t.state == TrialState.RUNNING:
+                    running_grids.append(t.system_attrs["grid_id"])
 
-        unvisited_grids = set(range(self._n_min_trials)) - set(visited_grids)
+        unvisited_grids = set(range(self._n_min_trials)) - set(visited_grids) - set(running_grids)
+
+        # If evaluations for all grids have been started, return grids that have not yet finished
+        # because all grids should be evaluated before stopping the optimization.
+        if len(unvisited_grids) == 0:
+            unvisited_grids = set(range(self._n_min_trials)) - set(visited_grids)
 
         return list(unvisited_grids)
 
